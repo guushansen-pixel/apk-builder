@@ -42,6 +42,7 @@ eingebettet, mit der sich der Build testen laesst.
 | `.\doctor.ps1` | Installation und Versionen pruefen |
 | `.\new-app.ps1 -Name X -PackageId com.y.x` | Projekt aus Template erzeugen |
 | `.\new-app.ps1 ... -Online` | App bekommt die INTERNET-Berechtigung |
+| `.\new-app.ps1 ... -Icon x.xml -IconBackground "#E4703A"` | eigenes Launcher-Icon |
 | `.\build-apk.ps1 -App X` | Debug-APK bauen |
 | `.\build-apk.ps1 -App X -Release` | signierte Release-APK bauen |
 | `.\build-apk.ps1 -App X -Install` | zusaetzlich per adb aufs Geraet |
@@ -60,6 +61,26 @@ Bewusste Entscheidungen:
   INTERNET-Berechtigung und kann gar nicht nach Hause telefonieren.
 - **Externe Links** oeffnen im Browser statt im WebView.
 - **Launcher-Icon als Vector Drawable** - keine PNGs, kein Bildwerkzeug noetig.
+
+## Eigenes Launcher-Icon
+
+`-Icon` erwartet ein Android Vector Drawable (`.xml`) mit `viewportWidth`/
+`viewportHeight` 108 und dem Motiv innerhalb von etwa Radius 31 um die Mitte
+(54,54) - ausserhalb schneidet die runde Launcher-Maske ab.
+
+```powershell
+.\new-app.ps1 -Name Spiel -PackageId com.daniel.spiel -WebRoot .\web `
+              -Icon .\mein-icon.xml -IconBackground "#E4703A"
+```
+
+Die Datei landet als `ic_launcher_foreground.xml` im Projekt und ist damit die
+**einzige** Stelle mit der Icon-Geometrie: das adaptive Icon (Android 8+) und
+der layer-list-Fallback fuer aeltere Geraete verweisen beide darauf.
+
+Das Icon nicht in den `-WebRoot`-Ordner legen - von dort wandert es sonst
+zusaetzlich als Web-Asset in die APK.
+
+PNG wird nicht unterstuetzt; das braeuchte erzeugte Dichte-Varianten.
 
 ## Signierung
 

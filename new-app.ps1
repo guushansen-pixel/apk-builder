@@ -13,6 +13,13 @@
 .PARAMETER WebRoot
     Ordner mit der Web-App (muss eine index.html enthalten). Ohne Angabe wird
     eine mitgelieferte Demo-Seite verwendet.
+.PARAMETER Icon
+    Android Vector Drawable (.xml) fuer das Launcher-Icon. Erwartet wird ein
+    <vector> mit viewportWidth/Height 108 und dem Motiv in der Mitte (etwa
+    x/y 22..86), damit es in der runden Maske nicht abgeschnitten wird.
+    Ohne Angabe bleibt das Standard-Icon des Templates.
+.PARAMETER IconBackground
+    Hintergrundfarbe des Launcher-Icons als #RRGGBB. Standard: #1F6FEB.
 .PARAMETER Online
     Fuegt die INTERNET-Berechtigung hinzu. Ohne diesen Schalter ist die App
     vollstaendig offline (und braucht die Berechtigung nicht).
@@ -26,6 +33,8 @@ param(
     [Parameter(Mandatory)][string]$Name,
     [Parameter(Mandatory)][string]$PackageId,
     [string]$WebRoot,
+    [string]$Icon,
+    [string]$IconBackground,
     [string]$VersionName = '1.0',
     [int]$VersionCode = 1,
     [switch]$Online,
@@ -52,6 +61,21 @@ $javaKeywords = @('abstract','assert','boolean','break','byte','case','catch','c
 foreach ($seg in $PackageId.Split('.')) {
     if ($javaKeywords -contains $seg) {
         throw "PackageId enthaelt das reservierte Java-Schluesselwort '$seg'."
+    }
+}
+
+if ($IconBackground -and $IconBackground -notmatch '^#[0-9A-Fa-f]{6}$') {
+    throw "Ungueltige IconBackground '$IconBackground'. Erwartet: #RRGGBB, z.B. #1F6FEB."
+}
+if ($Icon) {
+    if (-not (Test-Path $Icon)) { throw "Icon nicht gefunden: $Icon" }
+    $Icon = (Resolve-Path $Icon).Path
+    if ([System.IO.Path]::GetExtension($Icon) -ne '.xml') {
+        throw "Icon muss ein Android Vector Drawable (.xml) sein. PNG wird derzeit nicht unterstuetzt."
+    }
+    $iconXml = [System.IO.File]::ReadAllText($Icon)
+    if ($iconXml -notmatch '<vector') {
+        throw "Icon enthaelt kein <vector>-Element - ist das wirklich ein Vector Drawable?"
     }
 }
 
@@ -122,6 +146,22 @@ $activity = Join-Path $pkgDir 'MainActivity.java'
 Move-Item $tmpl $activity -Force
 Expand-Tokens $activity
 
+# --- Launcher-Icon -----------------------------------------------------------
+# Das Foreground-Drawable ist die einzige Stelle mit der Icon-Geometrie:
+# adaptive-icon (API 26+) und der layer-list-Fallback verweisen beide darauf.
+$iconNote = 'Standard-Icon des Templates'
+if ($Icon) {
+    Copy-Item $Icon (Join-Path $appDir 'app\src\main\res\drawable\ic_launcher_foreground.xml') -Force
+    $iconNote = Split-Path -Leaf $Icon
+}
+if ($IconBackground) {
+    $colorsFile = Join-Path $appDir 'app\src\main\res\values\colors.xml'
+    $colorsXml = [System.IO.File]::ReadAllText($colorsFile)
+    $colorsXml = $colorsXml -replace '(?<=name="ic_launcher_background">)#[0-9A-Fa-f]{6}', $IconBackground
+    [System.IO.File]::WriteAllText($colorsFile, $colorsXml, $utf8NoBom)
+    $iconNote += " auf $IconBackground"
+}
+
 # --- Web-Inhalte einbetten ---------------------------------------------------
 $assetsWww = Join-Path $appDir 'app\src\main\assets\www'
 if (Test-Path $assetsWww) { Remove-Item $assetsWww -Recurse -Force }
@@ -134,6 +174,7 @@ $sizeKb = [math]::Round((Get-ChildItem $assetsWww -Recurse -File | Measure-Objec
 Write-Host "  [ok] Projekt      $appDir" -ForegroundColor Green
 Write-Host "  [ok] Package      $PackageId" -ForegroundColor Green
 Write-Host "  [ok] Web-Inhalte  $fileCount Datei(en), $sizeKb KB aus $WebRoot" -ForegroundColor Green
+Write-Host "  [ok] Icon         $iconNote" -ForegroundColor Green
 if ($Online) {
     Write-Host '  [ok] INTERNET-Berechtigung gesetzt' -ForegroundColor Green
 } else {
