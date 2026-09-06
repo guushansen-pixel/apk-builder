@@ -1,0 +1,13 @@
+# Toolchain (mehrere GB, wird von setup.ps1 wiederhergestellt)
+/toolchain/
+
+# Signaturschluessel und Passwoerter - niemals ins Repo
+/keys/
+
+# Build-Ergebnisse
+/out/
+/apps/
+
+# Windows
+Thumbs.db
+desktop.ini
