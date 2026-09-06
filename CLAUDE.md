@@ -47,6 +47,17 @@ Verifikation.
 
 ## Bekannte Stolperstellen
 
+- **"Force Dark" faerbt die App um.** Ab Android 10 invertiert das System
+  Apps mit hellem Theme, sobald der dunkle Modus aktiv ist - die Seite blitzt
+  erst hell auf und wird dann schwarz. Das Template schaltet das an *beiden*
+  Stellen ab: `android:forceDarkAllowed=false` im Theme und
+  `setForceDark(FORCE_DARK_OFF)` am WebView. Eine der beiden allein reicht je
+  nach Android-Version nicht. Nur mit Geraet im dunklen Modus zu bemerken.
+- **`touch-action` beschraenkt Nachkommen.** `touch-action: none` auf `body`
+  verhindert das Scrollen in *allen* Kindelementen, auch wenn diese selbst
+  `pan-y` setzen. In Web-Apps gehoert die Sperre auf die Spielflaeche, nicht
+  auf `body`, sonst lassen sich eigene Menues auf dem Geraet nicht scrollen.
+
 - **stderr-Falle in PowerShell 5.1.** PS 5.1 verpackt jede stderr-Zeile eines
   nativen Programms in einen ErrorRecord; bei `$ErrorActionPreference='Stop'`
   wird daraus ein terminierender Fehler - auch bei Exitcode 0. Genau daran ist

@@ -61,6 +61,13 @@ Bewusste Entscheidungen:
   INTERNET-Berechtigung und kann gar nicht nach Hause telefonieren.
 - **Externe Links** oeffnen im Browser statt im WebView.
 - **Launcher-Icon als Vector Drawable** - keine PNGs, kein Bildwerkzeug noetig.
+- **Kein "Force Dark"** - ab Android 10 invertiert das System Apps mit hellem
+  Theme automatisch, sobald der Nutzer den dunklen Modus einschaltet. Die
+  Seite blitzt dann erst hell auf und wird danach umgefaerbt. Das Template
+  schaltet das an beiden noetigen Stellen ab (`android:forceDarkAllowed` im
+  Theme und `setForceDark` am WebView), damit die Web-App ihre eigenen Farben
+  behaelt. Wer stattdessen dem Systemmodus folgen will, macht das in der
+  Web-App per `prefers-color-scheme`.
 
 ## Eigenes Launcher-Icon
 

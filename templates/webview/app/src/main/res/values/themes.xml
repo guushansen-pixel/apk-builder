@@ -3,5 +3,12 @@
     <!-- Built-in Material-Theme: keine androidx-Abhaengigkeit noetig. -->
     <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
+
+        <!-- Ab Android 10 invertiert das System Apps mit hellem Theme
+             automatisch, wenn der Nutzer den dunklen Modus aktiviert hat
+             ("Force Dark"). Die Web-App bringt ihre eigenen Farben mit und
+             wuerde dabei erst hell aufblitzen und dann invertiert werden.
+             Wird auf aelteren Geraeten ignoriert. -->
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>
