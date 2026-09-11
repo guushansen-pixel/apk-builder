@@ -57,6 +57,14 @@ Verifikation.
   verhindert das Scrollen in *allen* Kindelementen, auch wenn diese selbst
   `pan-y` setzen. In Web-Apps gehoert die Sperre auf die Spielflaeche, nicht
   auf `body`, sonst lassen sich eigene Menues auf dem Geraet nicht scrollen.
+- **`navigator.vibrate()` braucht `android.permission.VIBRATE`.** Ohne diese
+  Berechtigung im Manifest tut die Vibration API in einer Android-WebView
+  still gar nichts - kein Fehler in der Konsole, kein Effekt am Geraet, im
+  Desktop-Browser aber unauffaellig, weil dort ohnehin nichts vibriert. Das
+  Template setzt die Berechtigung deshalb seit IntervalTimer (Sept. 2026)
+  fest (nicht ueber `-Online` gesteuert): VIBRATE ist eine "normale"
+  Berechtigung ohne Laufzeit-Dialog und ohne Netzwerkbezug, kostet also
+  offline-Apps nichts.
 
 - **stderr-Falle in PowerShell 5.1.** PS 5.1 verpackt jede stderr-Zeile eines
   nativen Programms in einen ErrorRecord; bei `$ErrorActionPreference='Stop'`

@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     {{INTERNET_PERMISSION}}
+    <!-- VIBRATE ist eine "normale" Berechtigung: kein Laufzeit-Dialog, kein
+         Netzwerkbezug, also unabhaengig vom Online/Offline-Schalter noetig
+         fuer navigator.vibrate() im WebView. Ohne sie tut vibrate() bei
+         Android WebViews still gar nichts (kein Fehler, kein Effekt). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"
