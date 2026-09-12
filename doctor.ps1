@@ -122,6 +122,38 @@ if (Test-Path $ks) {
     Write-Host "    Release-Keystore  = noch keiner (wird beim ersten -Release Build erzeugt)" -ForegroundColor Gray
 }
 
+# --- Godot (zweite Build-Faehigkeit, optional) ------------------------------
+Write-Host ''
+Write-Host '  Godot' -ForegroundColor White
+$godotProblems = @()
+function Show-GodotCheck {
+    param([string]$Name, [bool]$Ok, [string]$Detail)
+    if ($Ok) {
+        Write-Host ('  [ok]   {0,-18} {1}' -f $Name, $Detail) -ForegroundColor Green
+    } else {
+        Write-Host ('  [--]   {0,-18} {1}' -f $Name, $Detail) -ForegroundColor DarkYellow
+        $script:godotProblems += $Name
+    }
+}
+$godotExe = Get-ToolPath 'godot'
+if (Test-Path $godotExe) {
+    $ver = Get-VersionLine -Exe $godotExe -Arguments @('--version') -AllowFailure
+    Show-GodotCheck 'Godot-Editor' $true $ver
+} else {
+    Show-GodotCheck 'Godot-Editor' $false 'nicht installiert - .\setup-godot.ps1 ausfuehren'
+}
+$templatesDir = Join-Path $Paths.GodotTemplatesDir $V.GodotTemplatesDirName
+Show-GodotCheck 'Exportvorlagen' (Test-Path (Join-Path $templatesDir 'android_release.apk')) $templatesDir
+Show-GodotCheck "Platform $($V.GodotAndroidApiLevel)" (Test-Path (Join-Path $Paths.SdkHome "platforms\android-$($V.GodotAndroidApiLevel)")) ''
+Show-GodotCheck "Build-Tools $($V.GodotBuildToolsVersion)" (Test-Path (Join-Path $Paths.SdkHome "build-tools\$($V.GodotBuildToolsVersion)")) ''
+$jdkChoiceFile = Join-Path $Paths.Godot 'jdk-choice.txt'
+if (Test-Path $jdkChoiceFile) {
+    Write-Host "    JDK fuer Godot-Export = $((Get-Content $jdkChoiceFile -Raw).Trim())" -ForegroundColor Gray
+}
+if ($godotProblems.Count -gt 0) {
+    Write-Host "    (Godot ist optional - fehlt nur, wenn .\setup-godot.ps1 noch nicht lief)" -ForegroundColor DarkGray
+}
+
 Write-Host ''
 if ($problems.Count -eq 0) {
     Write-Host '  Alles bereit. Naechster Schritt:' -ForegroundColor Green

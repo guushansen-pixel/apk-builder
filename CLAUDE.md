@@ -17,6 +17,75 @@ Ordners nichts Android-bezogenes installiert.
 Es gibt keine Testsuite; `doctor.ps1` plus ein Build der Demo-App ist die
 Verifikation.
 
+## Zweite Build-Faehigkeit: Godot (seit 2026-09)
+
+Neben dem WebView-Pfad (oben) baut dieses Projekt auch Godot-Projekte zu
+Android-APKs - fuer Spiele, die mehr Grafikleistung brauchen als ein
+HTML5-Canvas (siehe `hopper\godot\`, Migration von der WebView-Version).
+Teilt sich denselben Android-SDK-Root und Keystore mit dem WebView-Pfad;
+nichts wird ersetzt, beide Pfade bleiben unabhaengig nutzbar.
+
+```powershell
+.\setup-godot.ps1                                    # Godot-Editor + Exportvorlagen installieren
+.\new-godot-app.ps1 -Name X -PackageId com.daniel.x.godot -ProjectRoot <pfad-zum-godot-projekt>
+.\build-godot-apk.ps1 -ProjectRoot <pfad> -AppName X          # Debug-APK -> out\
+.\build-godot-apk.ps1 -ProjectRoot <pfad> -AppName X -Release # signierte Release-APK
+```
+
+- **Sprache: GDScript, kein Mono/C#** - vermeidet eine zusaetzliche
+  .NET-Runtime im Export; fuer die bisherigen Projekte nicht noetig.
+- **Kein `new-app.ps1`-Aequivalent fuer Web-Content**: das Godot-Projekt
+  (Szenen/Skripte) gehoert dem jeweiligen Spiele-Repo, nicht apk-builder -
+  `new-godot-app.ps1` erzeugt/aktualisiert nur `export_presets.cfg` (und mit
+  `-Bootstrap` ein minimales Testprojekt fuer den Toolchain-Check).
+- **`export_presets.cfg` wird von Hand erzeugt, nie per Editor-GUI** - ich
+  (Claude Code) kann keine native GUI-App bedienen, nur den Browser-Tab.
+  Die Feldstruktur (gegen eine bekannte Godot-4-CI-Vorlage,
+  `abarichello/godot-ci`, abgeglichen) funktioniert **bestaetigt** end-to-end
+  mit Godot 4.7.2 (Phase-0-Testbuild, debug + release, 2026-09-12). Falls ein
+  kuenftiges Godot-Update die Feldnamen aendert und der Export deshalb
+  fehlschlaegt: einmaliger manueller Schritt noetig (Editor oeffnen,
+  Project -> Export -> Android-Preset neu anlegen, Datei committen) - danach
+  bleibt wieder alles skriptbar.
+  - **Zwei Stolperfallen dabei gefunden**: (1) `Set-Content -Encoding utf8`
+    schreibt in Windows PowerShell 5.1 IMMER ein UTF-8-BOM voraus - Godots
+    ConfigFile-Parser ueberliest das nicht und erkennt dann in der ganzen
+    Datei **keinen einzigen Preset** (kein Fehler beim Schreiben, nur
+    "Invalid export preset name" beim Export). Alle generierten Godot-Dateien
+    (`project.godot`, `.gd`, `.tscn`, `export_presets.cfg`) muessen deshalb
+    mit `-Encoding ascii` geschrieben werden (Inhalt ist ohnehin reines
+    ASCII). (2) `rendering/textures/vram_compression/import_etc2_astc=true`
+    muss in `project.godot` gesetzt sein, sonst bricht der Android-Export mit
+    "ETC2/ASTC texture compression is required" ab.
+- **Keystore**: Release-Builds nutzen denselben `keys\release.jks` wie die
+  WebView-Apps (wird bereits fuer mehrere unabhaengige Apps geteilt).
+  Zugangsdaten gehen als `GODOT_ANDROID_KEYSTORE_RELEASE_PATH/_USER/_PASSWORD`
+  Umgebungsvariablen in den Export, nie in `export_presets.cfg` - die Datei
+  ist damit gefahrlos committable. **Bestaetigt funktionsfaehig**: der
+  Phase-0-Testbuild wurde tatsaechlich mit dem geteilten Keystore signiert
+  (Zertifikat-DN identisch mit den WebView-Apps), nicht mit Godots eigenem
+  Auto-Debug-Key.
+- **JDK 17 vs. 21 - GEKLAERT**: das gemeinsame JDK 21 (oben, WebView-Pfad)
+  funktioniert **ohne Einschraenkung** auch fuer Godots Android-Export
+  (Phase-0-Testbuild debug+release erfolgreich). Kein zweites JDK 17 noetig -
+  `-UseJdk17`/`jdk-choice.txt` bleiben nur als Fallback fuer den Fall, dass
+  ein KUENFTIGES Godot-Update das aendert.
+- **NDK - GEKLAERT**: wird fuer einen reinen GDScript-Export (kein Custom
+  Build/keine GDExtension, `gradle_build/use_gradle_build=false`) NICHT
+  gebraucht - der Phase-0-Testbuild lief erfolgreich durch, ohne dass NDK
+  je installiert wurde. `setup-godot.ps1 -WithNdk` bleibt nur fuer den Fall
+  eines spaeteren Custom Builds (natives Plugin/GDExtension) reserviert.
+- **`gradle_build/use_gradle_build=false`** im Bootstrap-Preset: nutzt Godots
+  vorgefertigtes Android-Exportbinary statt eines vollen Gradle-Unterprojekts
+  - der einfachste, am wenigsten fehleranfaellige Pfad. Nur auf `true`
+  umstellen, wenn ein Feature wirklich einen Custom Build braucht (z.B.
+  natives Plugin/GDExtension) - das braucht dann vermutlich auch das NDK.
+- **Self-contained mode**: eine leere `._sc_`-Datei neben `godot.exe` sorgt
+  dafuer, dass Godot Editor-Einstellungen (inkl. Exportvorlagen) unter
+  `toolchain\godot\editor_data\` ablegt statt in `%APPDATA%` - gleiche
+  "nichts ausserhalb des Projektordners"-Philosophie wie beim Rest der
+  Toolchain.
+
 ## Struktur
 
 - `lib\versions.ps1` - **einziger** Ort fuer Versionen und Download-URLs

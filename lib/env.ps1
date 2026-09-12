@@ -24,6 +24,16 @@ $Paths = [ordered]@{
     Out           = Join-Path $Root 'out'
     EnvJson       = Join-Path $Toolchain 'env.json'
     JunctionMarker= Join-Path $Toolchain 'sdk-path.txt'
+
+    # --- Godot (siehe setup-godot.ps1) --------------------------------------
+    Godot         = Join-Path $Toolchain 'godot'
+    GodotExe      = Join-Path $Toolchain 'godot\godot.exe'
+    GodotDataDir  = Join-Path $Toolchain 'godot\editor_data'       # self-contained mode (._sc_)
+    # Godot erwartet Exportvorlagen unter "export_templates\<version>\", nicht
+    # nur "templates\" (das legt Godot selbst separat/leer an) - per echtem
+    # Exportversuch verifiziert, nicht geraten.
+    GodotTemplatesDir = Join-Path $Toolchain 'godot\editor_data\export_templates'
+    GodotJdk      = Join-Path $Toolchain 'jdk17'                  # nur angelegt, falls JDK 21 nicht funktioniert
 }
 
 # Der Projektpfad enthaelt Leerzeichen ("claude code projects"). Fuer Gradle/AGP
@@ -76,6 +86,7 @@ function Get-ToolPath {
         'gradle'     { return (Join-Path $Paths.Gradle 'bin\gradle.bat') }
         'sdkmanager' { return (Join-Path $Paths.SdkHome 'cmdline-tools\latest\bin\sdkmanager.bat') }
         'adb'        { return (Join-Path $Paths.SdkHome 'platform-tools\adb.exe') }
+        'godot'      { return $Paths.GodotExe }
         default {
             $bt = Get-BuildToolsDir
             if (-not $bt) { return $null }
@@ -101,6 +112,30 @@ function Test-ToolchainReady {
 function Assert-ToolchainReady {
     if (-not (Test-ToolchainReady)) {
         throw "Toolchain ist nicht (vollstaendig) installiert. Bitte zuerst .\setup.ps1 ausfuehren."
+    }
+}
+
+# Godots Android-Export braucht ein eigenes JAVA_HOME zur Exportzeit (per
+# Umgebungsvariable, nicht ueber PATH) - siehe setup-godot.ps1: das schreibt
+# nach dem ersten funktionierenden Testexport fest, ob das gemeinsame JDK 21
+# reicht oder ein zweites, eigenes JDK 17 noetig war (godot-jdk-choice.txt).
+function Get-GodotJavaHome {
+    $marker = Join-Path $Paths.Godot 'jdk-choice.txt'
+    if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq '17')) {
+        return $Paths.GodotJdk
+    }
+    return $Paths.Jdk
+}
+
+function Test-GodotReady {
+    if (-not (Test-Path $Paths.GodotExe)) { return $false }
+    if (-not (Test-Path (Join-Path $Paths.GodotTemplatesDir (Get-ToolchainVersions).GodotTemplatesDirName))) { return $false }
+    return $true
+}
+
+function Assert-GodotReady {
+    if (-not (Test-GodotReady)) {
+        throw "Godot-Toolchain ist nicht (vollstaendig) installiert. Bitte zuerst .\setup-godot.ps1 ausfuehren."
     }
 }
 
