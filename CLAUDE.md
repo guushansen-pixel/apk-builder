@@ -135,6 +135,25 @@ nichts wird ersetzt, beide Pfade bleiben unabhaengig nutzbar.
   Berechtigung ohne Laufzeit-Dialog und ohne Netzwerkbezug, kostet also
   offline-Apps nichts.
 
+- **Zurueck-Wischgeste schliesst die App statt `webView.goBack()` auszuloesen
+  (gefunden bei breathe-well, targetSdk 36, Sept. 2026).** Das Template faengt
+  Zurueck-Navigation nur ueber `onKeyDown(KeyEvent.KEYCODE_BACK)` ab - das
+  reicht fuer den physischen/3-Button-Zurueck, aber bei Android-Versionen mit
+  aktiviertem Predictive Back (Pflicht-Verhalten ab hohem targetSdk, hier 36)
+  wird die moderne Kanten-Wischgeste ueber `OnBackInvokedCallback` geroutet
+  und ignoriert `onKeyDown` komplett - die Geste schliesst dann die Activity
+  direkt, ohne dass eine App-eigene `history.pushState()`/`popstate`-basierte
+  Abbrechen-Bestaetigung je feuert. Fix (in breathe-well als projekteigener
+  `build.ps1`-Patch, noch nicht ins Template zurueckportiert): in
+  `AndroidManifest.xml` `android:enableOnBackInvokedCallback="true"` auf
+  `<application>` setzen, und in `MainActivity.onCreate()` zusaetzlich
+  `getOnBackInvokedDispatcher().registerOnBackInvokedCallback(PRIORITY_DEFAULT, ...)`
+  registrieren, das dieselbe `webView.canGoBack() ? webView.goBack() : finish()`-Logik
+  wie `onKeyDown` ausfuehrt (reines Platform-API, `android.window.*`, kein
+  androidx noetig). **Betrifft vermutlich auch ice-breath/hopper/
+  interval-timer** (gleiches Template, vermutlich aehnlich hoher targetSdk) -
+  dort bisher nicht gefixt, nur bei breathe-well aufgefallen und behoben.
+
 - **stderr-Falle in PowerShell 5.1.** PS 5.1 verpackt jede stderr-Zeile eines
   nativen Programms in einen ErrorRecord; bei `$ErrorActionPreference='Stop'`
   wird daraus ein terminierender Fehler - auch bei Exitcode 0. Genau daran ist
