@@ -23,6 +23,13 @@
 .PARAMETER Online
     Fuegt die INTERNET-Berechtigung hinzu. Ohne diesen Schalter ist die App
     vollstaendig offline (und braucht die Berechtigung nicht).
+.PARAMETER Portrait
+    Sperrt die App im Hochformat (android:screenOrientation="portrait").
+.PARAMETER KeepScreenOn
+    Haelt den Bildschirm an, solange die App im Vordergrund ist
+    (FLAG_KEEP_SCREEN_ON, keine Berechtigung noetig). Fuer Timer, Atem- und
+    Lern-Apps - navigator.wakeLock allein greift in der WebView nicht
+    zuverlaessig.
 .PARAMETER Force
     Ueberschreibt ein bereits vorhandenes Projekt gleichen Namens.
 .EXAMPLE
@@ -38,6 +45,8 @@ param(
     [string]$VersionName = '1.0',
     [int]$VersionCode = 1,
     [switch]$Online,
+    [switch]$Portrait,
+    [switch]$KeepScreenOn,
     [switch]$Force
 )
 
@@ -113,6 +122,13 @@ if ($Online) {
     $internetPermission = '<uses-permission android:name="android.permission.INTERNET" />'
 }
 
+$screenOrientation = ''
+if ($Portrait) {
+    $screenOrientation = 'android:screenOrientation="portrait"'
+}
+$keepScreenOnValue = 'false'
+if ($KeepScreenOn) { $keepScreenOnValue = 'true' }
+
 $tokens = @{
     '{{APP_NAME}}'            = $Name
     '{{PACKAGE_ID}}'          = $PackageId
@@ -123,6 +139,8 @@ $tokens = @{
     '{{TARGET_SDK}}'          = "$($V.TargetSdk)"
     '{{MIN_SDK}}'             = "$($V.MinSdk)"
     '{{INTERNET_PERMISSION}}' = $internetPermission
+    '{{SCREEN_ORIENTATION}}'  = $screenOrientation
+    '{{KEEP_SCREEN_ON}}'      = $keepScreenOnValue
 }
 
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -180,6 +198,8 @@ if ($Online) {
 } else {
     Write-Host '  [ok] Offline (keine INTERNET-Berechtigung)' -ForegroundColor Green
 }
+if ($Portrait)     { Write-Host '  [ok] Portrait-Lock' -ForegroundColor Green }
+if ($KeepScreenOn) { Write-Host '  [ok] Bildschirm bleibt an' -ForegroundColor Green }
 Write-Host ''
 Write-Host '  Naechster Schritt:' -ForegroundColor White
 Write-Host "    .\build-apk.ps1 -App $Name" -ForegroundColor White

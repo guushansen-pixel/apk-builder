@@ -136,23 +136,30 @@ nichts wird ersetzt, beide Pfade bleiben unabhaengig nutzbar.
   offline-Apps nichts.
 
 - **Zurueck-Wischgeste schliesst die App statt `webView.goBack()` auszuloesen
-  (gefunden bei breathe-well, targetSdk 36, Sept. 2026).** Das Template faengt
-  Zurueck-Navigation nur ueber `onKeyDown(KeyEvent.KEYCODE_BACK)` ab - das
-  reicht fuer den physischen/3-Button-Zurueck, aber bei Android-Versionen mit
-  aktiviertem Predictive Back (Pflicht-Verhalten ab hohem targetSdk, hier 36)
-  wird die moderne Kanten-Wischgeste ueber `OnBackInvokedCallback` geroutet
-  und ignoriert `onKeyDown` komplett - die Geste schliesst dann die Activity
-  direkt, ohne dass eine App-eigene `history.pushState()`/`popstate`-basierte
-  Abbrechen-Bestaetigung je feuert. Fix (in breathe-well als projekteigener
-  `build.ps1`-Patch, noch nicht ins Template zurueckportiert): in
-  `AndroidManifest.xml` `android:enableOnBackInvokedCallback="true"` auf
-  `<application>` setzen, und in `MainActivity.onCreate()` zusaetzlich
-  `getOnBackInvokedDispatcher().registerOnBackInvokedCallback(PRIORITY_DEFAULT, ...)`
-  registrieren, das dieselbe `webView.canGoBack() ? webView.goBack() : finish()`-Logik
-  wie `onKeyDown` ausfuehrt (reines Platform-API, `android.window.*`, kein
-  androidx noetig). **Betrifft vermutlich auch ice-breath/hopper/
-  interval-timer** (gleiches Template, vermutlich aehnlich hoher targetSdk) -
-  dort bisher nicht gefixt, nur bei breathe-well aufgefallen und behoben.
+  (gefunden bei breathe-well, targetSdk 36, Sept. 2026).** Bei aktivem
+  Predictive Back laeuft die Kanten-Wischgeste nur ueber
+  `OnBackInvokedCallback` und ignoriert `onKeyDown` komplett - ohne Callback
+  schliesst sie die Activity direkt, und kein `popstate` der Web-App feuert.
+  **Seit 2026-09-24 im Template behoben** (`registerBackGesture()` in
+  `MainActivity`), gilt also fuer jede neu erzeugte App, auch fuer Hopper und
+  IntervalTimer beim naechsten `new-app.ps1 -Force`. Zwei Absichten dabei:
+  - Die Klassen sind **voll qualifiziert statt importiert**, und das Manifest
+    setzt **kein** `android:enableOnBackInvokedCallback`. Die projekteigenen
+    `build.ps1`-Wrapper von ice-breath, breathe-well, vokabeltrainer und
+    ladein2 patchen genau diese Stellen selbst nach; ein doppeltes
+    Manifest-Attribut braeche deren Build. Ihr zusaetzlicher Callback ist
+    harmlos (gleiche Logik). Die Patch-Anker der Wrapper (`launchMode`,
+    `theme`, `import android.view.KeyEvent;`, `setContentView(webView);`, ...)
+    duerfen deshalb nicht umformuliert werden.
+  - Bei targetSdk 36 ist Predictive Back ohnehin Standard, das Attribut also
+    nicht noetig; bei niedrigerem targetSdk ignoriert Android den Callback
+    und schickt die Geste wie frueher an `onKeyDown`.
+- **Portrait-Lock und Keep-Screen-On** gibt es seit demselben Tag als
+  Schalter `new-app.ps1 -Portrait -KeepScreenOn` (Platzhalter
+  `{{SCREEN_ORIENTATION}}` im Manifest, `{{KEEP_SCREEN_ON}}` als
+  boolesche Konstante in `MainActivity`). Die bestehenden Wrapper rufen
+  `new-app.ps1` ohne diese Schalter auf und patchen weiter selbst - beides
+  gleichzeitig ergaebe ein doppeltes `screenOrientation`-Attribut.
 
 - **stderr-Falle in PowerShell 5.1.** PS 5.1 verpackt jede stderr-Zeile eines
   nativen Programms in einen ErrorRecord; bei `$ErrorActionPreference='Stop'`
