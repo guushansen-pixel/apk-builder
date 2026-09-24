@@ -42,6 +42,8 @@ eingebettet, mit der sich der Build testen laesst.
 | `.\doctor.ps1` | Installation und Versionen pruefen |
 | `.\new-app.ps1 -Name X -PackageId com.y.x` | Projekt aus Template erzeugen |
 | `.\new-app.ps1 ... -Online` | App bekommt die INTERNET-Berechtigung |
+| `.\new-app.ps1 ... -Portrait` | App im Hochformat sperren |
+| `.\new-app.ps1 ... -KeepScreenOn` | Bildschirm bleibt an, solange die App offen ist |
 | `.\new-app.ps1 ... -Icon x.xml -IconBackground "#E4703A"` | eigenes Launcher-Icon |
 | `.\build-apk.ps1 -App X` | Debug-APK bauen |
 | `.\build-apk.ps1 -App X -Release` | signierte Release-APK bauen |
@@ -60,6 +62,11 @@ Bewusste Entscheidungen:
 - **Offline per Default** - ohne `-Online` hat die App keine
   INTERNET-Berechtigung und kann gar nicht nach Hause telefonieren.
 - **Externe Links** oeffnen im Browser statt im WebView.
+- **Zurueck-Taste und Zurueck-Wischgeste** gehen im WebView zurueck
+  (`history.back()`), erst auf der ersten Seite wird die App geschlossen.
+  Eine Web-App kann so per `history.pushState`/`popstate` z.B. eine
+  Abbrechen-Rueckfrage zeigen. Die Wischgeste braucht ab targetSdk 36 einen
+  eigenen `OnBackInvokedCallback` - das Template registriert ihn.
 - **Launcher-Icon als Vector Drawable** - keine PNGs, kein Bildwerkzeug noetig.
 - **Kein "Force Dark"** - ab Android 10 invertiert das System Apps mit hellem
   Theme automatisch, sobald der Nutzer den dunklen Modus einschaltet. Die

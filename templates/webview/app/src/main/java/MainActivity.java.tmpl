@@ -23,6 +23,11 @@ public class MainActivity extends Activity {
 
     private static final String START_URL = "file:///android_asset/www/index.html";
 
+    // Von new-app.ps1 -KeepScreenOn gesetzt: Bildschirm bleibt an, solange
+    // die App im Vordergrund ist (Timer, Atem-Sessions, Lern-Apps). Braucht
+    // anders als WAKE_LOCK keine Manifest-Berechtigung.
+    private static final boolean KEEP_SCREEN_ON = {{KEEP_SCREEN_ON}};
+
     private WebView webView;
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -37,6 +42,11 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(webView);
+
+        if (KEEP_SCREEN_ON) {
+            getWindow().addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -58,6 +68,8 @@ public class MainActivity extends Activity {
 
         webView.setWebViewClient(new LocalWebViewClient());
 
+        registerBackGesture();
+
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState);
         } else {
@@ -78,6 +90,37 @@ public class MainActivity extends Activity {
             return true;
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    /**
+     * Zurueck-Wischgeste (Predictive Back). Ab targetSdk 36 laeuft die
+     * Kanten-Geste nicht mehr ueber onKeyDown, sondern nur noch ueber
+     * OnBackInvokedCallback - ohne diesen Callback schliesst sie die App
+     * direkt, und eine Web-App kann per history.pushState/popstate nichts
+     * mehr abfangen (z.B. keine Abbrechen-Rueckfrage mitten in einer
+     * Session). Gleiche Logik wie onKeyDown.
+     *
+     * Klassen voll qualifiziert statt importiert und bewusst OHNE
+     * android:enableOnBackInvokedCallback im Manifest: die projekteigenen
+     * build.ps1-Wrapper (ice-breath, breathe-well, vokabeltrainer,
+     * ladein2) patchen genau diese beiden Stellen selbst nach. Ein doppeltes
+     * Manifest-Attribut braeche den Build. Bei targetSdk 36 ist Predictive
+     * Back ohnehin Standard; bei niedrigerem targetSdk ignoriert Android den
+     * Callback und schickt die Geste wie frueher an onKeyDown.
+     */
+    private void registerBackGesture() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                () -> {
+                    if (webView.canGoBack()) {
+                        webView.goBack();
+                    } else {
+                        finish();
+                    }
+                });
     }
 
     /** Haelt lokale Seiten im WebView, externe Links gehen an den Browser. */
