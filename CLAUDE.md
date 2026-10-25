@@ -154,6 +154,24 @@ nichts wird ersetzt, beide Pfade bleiben unabhaengig nutzbar.
   - Bei targetSdk 36 ist Predictive Back ohnehin Standard, das Attribut also
     nicht noetig; bei niedrigerem targetSdk ignoriert Android den Callback
     und schickt die Geste wie frueher an `onKeyDown`.
+- **Edge-to-Edge: klebende Kopf-/Fusszeilen unter den Systemleisten
+  (gefunden bei vokabeltrainer, Okt. 2026).** Ab targetSdk 35 zeichnet
+  Android auf Android-15+-Geraeten die App hinter Status- und
+  Navigationsleiste; `env(safe-area-inset-*)` liefert im WebView 0. **Seit
+  2026-10-25 im Template** (`registerInsets()` in `MainActivity`): die
+  Activity setzt die Leistenhoehen in dp als `--sat` / `--sab` auf
+  `document.documentElement` (nach jedem Seitenladen und bei jeder
+  Insets-Aenderung), abfragbar auch per `window.AndroidUi.insetTop()` /
+  `insetBottom()`. Auf aelteren Geraeten bleiben beide 0. **Konvention fuer
+  jede Web-App:**
+  `:root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }`
+  und alles, was oben oder unten am Rand klebt, mit `var(--sat)` /
+  `var(--sab)` polstern. Ohne diese CSS-Zeilen bewirkt der Template-Fix
+  nichts. Der Inline-Style der Activity schlaegt den `:root`-Wert; im
+  Desktop-Browser greift der `env()`-Rueckfall. Pruefen ohne Geraet:
+  `document.documentElement.style.setProperty('--sat','48px')` in der Konsole.
+  Die Wrapper-Anker (inkl. `/** Haelt lokale Seiten im WebView`) sind
+  unveraendert geblieben.
 - **Portrait-Lock und Keep-Screen-On** gibt es seit demselben Tag als
   Schalter `new-app.ps1 -Portrait -KeepScreenOn` (Platzhalter
   `{{SCREEN_ORIENTATION}}` im Manifest, `{{KEEP_SCREEN_ON}}` als

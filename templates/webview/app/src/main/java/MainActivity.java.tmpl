@@ -69,6 +69,7 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new LocalWebViewClient());
 
         registerBackGesture();
+        registerInsets();
 
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState);
@@ -123,8 +124,70 @@ public class MainActivity extends Activity {
                 });
     }
 
+    // Hoehe von Status- und Navigationsleiste in dp (CSS-px == dp im WebView).
+    private volatile int insetTop = 0;
+    private volatile int insetBottom = 0;
+
+    /**
+     * Edge-to-Edge. Ab targetSdk 35 zeichnet Android auf Android-15+-Geraeten
+     * die App hinter Status- und Navigationsleiste; eine klebende Kopf- oder
+     * Fusszeile liegt dann unter der Leiste und ist nicht mehr antippbar.
+     * env(safe-area-inset-*) liefert im WebView 0, deshalb setzt die
+     * Activity die Leistenhoehen selbst als CSS-Variablen --sat / --sab auf
+     * document.documentElement - nach jedem Seitenladen und bei jeder
+     * Insets-Aenderung (Drehung, Wechsel der Navigationsart). Die Web-App
+     * braucht nur var(--sat) / var(--sab) im CSS, mit
+     * :root { --sat: env(safe-area-inset-top, 0px); ... } als Rueckfall fuer
+     * den Desktop-Browser. Zusaetzlich abfragbar per
+     * window.AndroidUi.insetTop() / insetBottom().
+     *
+     * Ohne erzwungenes Edge-to-Edge (aelteres Geraet oder targetSdk < 35)
+     * liegt der Inhalt ohnehin zwischen den Leisten, dann bleiben beide 0.
+     */
+    private void registerInsets() {
+        webView.addJavascriptInterface(new InsetsBridge(), "AndroidUi");
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            return;
+        }
+        if (getApplicationInfo().targetSdkVersion < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            return;
+        }
+        getWindow().getDecorView().setOnApplyWindowInsetsListener((v, insets) -> {
+            android.graphics.Insets bars =
+                    insets.getInsets(android.view.WindowInsets.Type.systemBars());
+            float density = getResources().getDisplayMetrics().density;
+            if (density <= 0) {
+                density = 1;
+            }
+            insetTop = Math.round(bars.top / density);
+            insetBottom = Math.round(bars.bottom / density);
+            pushInsets();
+            return v.onApplyWindowInsets(insets);
+        });
+    }
+
+    private void pushInsets() {
+        webView.evaluateJavascript(
+                "(function(s){s.setProperty('--sat','" + insetTop + "px');"
+                        + "s.setProperty('--sab','" + insetBottom + "px');})"
+                        + "(document.documentElement.style)", null);
+    }
+
+    private class InsetsBridge {
+        @android.webkit.JavascriptInterface
+        public int insetTop() { return insetTop; }
+
+        @android.webkit.JavascriptInterface
+        public int insetBottom() { return insetBottom; }
+    }
+
     /** Haelt lokale Seiten im WebView, externe Links gehen an den Browser. */
     private class LocalWebViewClient extends WebViewClient {
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            pushInsets();
+        }
 
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
