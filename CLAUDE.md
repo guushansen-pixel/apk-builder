@@ -172,6 +172,20 @@ nichts wird ersetzt, beide Pfade bleiben unabhaengig nutzbar.
   `document.documentElement.style.setProperty('--sat','48px')` in der Konsole.
   Die Wrapper-Anker (inkl. `/** Haelt lokale Seiten im WebView`) sind
   unveraendert geblieben.
+- **Renderer-Absturz beendet die App nicht mehr (seit 2026-11-10 im
+  Template).** Stirbt der Renderer-Prozess des WebView (Absturz oder vom
+  System bei Speichermangel beendet), schliesst Android ohne
+  `onRenderProcessGone` die ganze App. `LocalWebViewClient` faengt das jetzt
+  ab: toten WebView entfernen, `recreate()` - `onCreate` baut alles neu auf,
+  inklusive der Bruecken, die die Wrapper dort einpatchen. Bewusst **kein**
+  zweiter `setContentView(webView);`-Aufruf im Template: die Wrapper ersetzen
+  ihre Anker per `-replace` an *allen* Fundstellen, ein doppelter Anker wuerde
+  doppelt gepatcht. Das Flag `rendererGone` schuetzt die Stellen, die den
+  WebView sonst noch anfassen. Dazu: `restoreState()` liefert `null`, wenn
+  kein WebView-Zustand im Bundle liegt - dann wird die Startseite geladen
+  statt einer leeren Seite. **Nicht am Geraet getestet** (laesst sich nur
+  provozieren, z.B. per `chrome://crash` in einem Debug-Build mit
+  `-Online`); Build und Wrapper-Patches aller fuenf neu gebauten Apps laufen.
 - **Portrait-Lock und Keep-Screen-On** gibt es seit demselben Tag als
   Schalter `new-app.ps1 -Portrait -KeepScreenOn` (Platzhalter
   `{{SCREEN_ORIENTATION}}` im Manifest, `{{KEEP_SCREEN_ON}}` als

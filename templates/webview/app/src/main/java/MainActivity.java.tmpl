@@ -71,21 +71,33 @@ public class MainActivity extends Activity {
         registerBackGesture();
         registerInsets();
 
-        if (savedInstanceState != null) {
-            webView.restoreState(savedInstanceState);
-        } else {
+        // restoreState liefert null, wenn kein WebView-Zustand im Bundle
+        // liegt (z.B. nach einem Renderer-Absturz, siehe
+        // onRenderProcessGone) - dann frisch laden statt leer zu bleiben.
+        if (savedInstanceState == null
+                || webView.restoreState(savedInstanceState) == null) {
             webView.loadUrl(START_URL);
         }
     }
 
+    // Gesetzt, sobald der Renderer-Prozess des WebView gestorben ist: der
+    // WebView ist dann zerstoert und darf bis zum Neuaufbau der Activity
+    // nicht mehr angefasst werden.
+    private boolean rendererGone = false;
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        webView.saveState(outState);
+        if (!rendererGone) {
+            webView.saveState(outState);
+        }
     }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (rendererGone) {
+            return super.onKeyDown(keyCode, event);
+        }
         if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
             webView.goBack();
             return true;
@@ -116,7 +128,7 @@ public class MainActivity extends Activity {
         getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 () -> {
-                    if (webView.canGoBack()) {
+                    if (!rendererGone && webView.canGoBack()) {
                         webView.goBack();
                     } else {
                         finish();
@@ -167,6 +179,9 @@ public class MainActivity extends Activity {
     }
 
     private void pushInsets() {
+        if (rendererGone) {
+            return;
+        }
         webView.evaluateJavascript(
                 "(function(s){s.setProperty('--sat','" + insetTop + "px');"
                         + "s.setProperty('--sab','" + insetBottom + "px');})"
@@ -187,6 +202,30 @@ public class MainActivity extends Activity {
         @Override
         public void onPageFinished(WebView view, String url) {
             pushInsets();
+        }
+
+        /**
+         * Der Renderer-Prozess des WebView ist gestorben (Absturz oder vom
+         * System bei Speichermangel beendet). Ohne diese Methode beendet
+         * Android daraufhin die ganze App. Stattdessen: toten WebView
+         * entfernen und die Activity neu aufbauen - onCreate legt dann einen
+         * frischen WebView an, samt allem, was die build.ps1-Wrapper dort
+         * einhaengen (JS-Bruecken), und laedt die Startseite. Was die Web-App
+         * im localStorage gesichert hat, ist danach wieder da. Aufgerufen
+         * wird das erst ab Android 8 (API 26); darunter bleibt es beim alten
+         * Verhalten.
+         */
+        @Override
+        public boolean onRenderProcessGone(WebView view,
+                android.webkit.RenderProcessGoneDetail detail) {
+            rendererGone = true;
+            ViewGroup parent = (ViewGroup) view.getParent();
+            if (parent != null) {
+                parent.removeView(view);
+            }
+            view.destroy();
+            recreate();
+            return true;
         }
 
         @Override
